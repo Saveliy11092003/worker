@@ -19,6 +19,10 @@ configurations {
 	}
 }
 
+configurations {
+	jaxb
+}
+
 repositories {
 	mavenCentral()
 }
@@ -30,7 +34,51 @@ dependencies {
 	annotationProcessor 'org.projectlombok:lombok'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	implementation 'wsdl4j:wsdl4j'
+	implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-xml:2.16.1'
+
+	implementation 'org.glassfish.jaxb:jaxb-xjc'
+	jaxb 'org.glassfish.jaxb:jaxb-xjc:4.0.3'
+	jaxb 'org.glassfish.jaxb:jaxb-runtime:4.0.3'
+
+	implementation 'com.github.dpaukov:combinatoricslib3:3.4.0'
 }
+
+bootJar {
+	archiveBaseName.set('gs-producing-web-service')
+	archiveVersion.set('0.1.0')
+}
+
+sourceSets {
+	main {
+		java {
+			srcDir 'src/main/java'
+			srcDir 'build/generated-sources/jaxb'
+		}
+	}
+}
+
+task genJaxb {
+	ext.sourcesDir = "${buildDir}/generated-sources/jaxb"
+	ext.schema = "src/main/resources/crack_hash_manager_schema.xsd"
+
+	outputs.dir sourcesDir
+
+	doLast() {
+		project.ant {
+			taskdef name: "xjc", classname: "com.sun.tools.xjc.XJCTask",
+					classpath: configurations.jaxb.asPath
+			mkdir(dir: sourcesDir)
+
+			xjc(destdir: sourcesDir, schema: schema) {
+				arg(value: "-wsdl")
+				produces(dir: sourcesDir, includes: "**/*.java")
+			}
+		}
+	}
+}
+
+compileJava.dependsOn genJaxb
 
 tasks.named('test') {
 	useJUnitPlatform()
