@@ -42,6 +42,9 @@ dependencies {
 	jaxb 'org.glassfish.jaxb:jaxb-runtime:4.0.3'
 
 	implementation 'com.github.dpaukov:combinatoricslib3:3.4.0'
+
+	implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-xml'
+	implementation 'com.fasterxml.jackson.module:jackson-module-jaxb-annotations'
 }
 
 bootJar {
@@ -60,7 +63,8 @@ sourceSets {
 
 task genJaxb {
 	ext.sourcesDir = "${buildDir}/generated-sources/jaxb"
-	ext.schema = "src/main/resources/crack_hash_manager_schema.xsd"
+	ext.schema1 = "src/main/resources/crack_hash_manager_schema.xsd"
+	ext.schema2 = "src/main/resources/crack_hash_worker_schema.xsd"
 
 	outputs.dir sourcesDir
 
@@ -70,7 +74,12 @@ task genJaxb {
 					classpath: configurations.jaxb.asPath
 			mkdir(dir: sourcesDir)
 
-			xjc(destdir: sourcesDir, schema: schema) {
+			xjc(destdir: sourcesDir, schema: schema1) {
+				arg(value: "-wsdl")
+				produces(dir: sourcesDir, includes: "**/*.java")
+			}
+
+			xjc(destdir: sourcesDir, schema: schema2) {
 				arg(value: "-wsdl")
 				produces(dir: sourcesDir, includes: "**/*.java")
 			}

@@ -15,8 +15,9 @@ public class WorkerController {
     private final WorkerService workerService;
 
     @PostMapping("/hash/crack/task")
-    public void crackPassword(@RequestBody CrackHashManagerRequest crackHashManagerRequest) {
+    public CrackHashManagerRequest crackPassword(@RequestBody CrackHashManagerRequest crackHashManagerRequest) {
         workerService.task(crackHashManagerRequest);
+        return crackHashManagerRequest;
     }
 
 }
