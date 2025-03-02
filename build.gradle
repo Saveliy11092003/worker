@@ -47,6 +47,14 @@ dependencies {
 	implementation 'com.fasterxml.jackson.module:jackson-module-jaxb-annotations'
 }
 
+jar {
+	manifest {
+		attributes(
+				'Main-Class': 'ru.trushkov.worker.WorkerApplication'
+		)
+	}
+}
+
 bootJar {
 	archiveBaseName.set('gs-producing-web-service')
 	archiveVersion.set('0.1.0')
@@ -68,20 +76,28 @@ task genJaxb {
 
 	outputs.dir sourcesDir
 
-	doLast() {
+	doLast {
+		// Создайте директории для каждой схемы
+		def schema1Dir = "${sourcesDir}/schema1"
+		def schema2Dir = "${sourcesDir}/schema2"
+
+		mkdir(schema1Dir)
+		mkdir(schema2Dir)
+
 		project.ant {
 			taskdef name: "xjc", classname: "com.sun.tools.xjc.XJCTask",
 					classpath: configurations.jaxb.asPath
-			mkdir(dir: sourcesDir)
 
-			xjc(destdir: sourcesDir, schema: schema1) {
+			// Генерация для первой схемы
+			xjc(destdir: schema1Dir, schema: schema1) {
 				arg(value: "-wsdl")
-				produces(dir: sourcesDir, includes: "**/*.java")
+				produces(dir: schema1Dir, includes: "**/*.java")
 			}
 
-			xjc(destdir: sourcesDir, schema: schema2) {
+			// Генерация для второй схемы
+			xjc(destdir: schema2Dir, schema: schema2) {
 				arg(value: "-wsdl")
-				produces(dir: sourcesDir, includes: "**/*.java")
+				produces(dir: schema2Dir, includes: "**/*.java")
 			}
 		}
 	}

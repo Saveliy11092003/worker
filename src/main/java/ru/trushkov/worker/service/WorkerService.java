@@ -81,6 +81,13 @@ public class WorkerService {
         );
         System.out.println("Response: " + response.getBody());*/
 
+        StringBuilder answerPart = new StringBuilder();
+        answerPart.append("<Answers>");
+        for (String word : crackHashWorkerResponse.getAnswers().getWords()) {
+            answerPart.append("<words>").append(word).append("</words>");
+        }
+        answerPart.append("</Answers>");
+
         String soapRequest =
                 "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:crac=\"http://ccfit.nsu.ru/schema/crack-hash-response\">" +
                         "   <soapenv:Header/>" +
@@ -88,9 +95,7 @@ public class WorkerService {
                         "      <crac:CrackHashWorkerResponse>" +
                         "         <RequestId>" + crackHashWorkerResponse.getRequestId() + "</RequestId>" +
                         "         <PartNumber>" + crackHashWorkerResponse.getPartNumber() + "</PartNumber>" +
-                        "         <Answers>" +
-                        "            <words>" + crackHashWorkerResponse.getAnswers().getWords().get(0) + "</words>" +
-                        "         </Answers>" +
+                                        answerPart +
                         "      </crac:CrackHashWorkerResponse>" +
                         "   </soapenv:Body>" +
                         "</soapenv:Envelope>";
@@ -101,15 +106,12 @@ public class WorkerService {
         HttpEntity<String> requestEntity = new HttpEntity<>(soapRequest, headers);
 
         RestTemplate restTemplate = new RestTemplate();
-        ResponseEntity<String> response = restTemplate.exchange(
-                "http://localhost:8080/internal/api/manager/hash/crack/task",
+        restTemplate.exchange(
+                "http://manager:8080/internal/api/manager/hash/crack/task",
                 HttpMethod.POST,
                 requestEntity,
                 String.class
         );
-
-        System.out.println("Response: " + response.getBody());
-
 
     }
 
