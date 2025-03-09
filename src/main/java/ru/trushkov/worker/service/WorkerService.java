@@ -12,75 +12,33 @@ import org.springframework.web.client.RestTemplate;
 import ru.nsu.ccfit.schema.crack_hash_request.CrackHashManagerRequest;
 import ru.nsu.ccfit.schema.crack_hash_response.CrackHashWorkerResponse;
 
-import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
 public class WorkerService {
 
+    private AtomicInteger currentIndex = new AtomicInteger();
+
+    private volatile String currentRequestId;
+
     public void task(CrackHashManagerRequest request) {
-        System.out.println("alphabet " + request.getAlphabet());
-        List<String> permutations = Generator.permutation(request.getAlphabet().getSymbols())
-                .withRepetitions(request.getMaxLength()).stream().map(list -> String.join("", list)).toList();
-        List<String> partPermutations = getPartPermutations(permutations, request.getPartNumber(), request.getPartCount());
-        System.out.println(partPermutations);
-        List<String> answer = getPossiblePasswords(request.getHash() , partPermutations);
+        currentRequestId = request.getRequestId();
+        currentIndex.set(0);
+        Stream<String> permutations = Generator.permutation(request.getAlphabet().getSymbols())
+                .withRepetitions(request.getMaxLength()).stream().map(list -> String.join("", list));
+        List<String> answer = getAnswer(permutations, request.getPartNumber(), request.getPartCount(), request.getMaxLength(), request.getHash());
+        System.out.println(answer);
         CrackHashWorkerResponse crackHashWorkerResponse = createCrackHashWorkerResponse(answer, request.getRequestId(), request.getPartNumber());
         sendPossiblePasswords(crackHashWorkerResponse);
     }
 
-    private List<String> getPossiblePasswords(String hash, List<String> permutations) {
-        List<String> answer = new ArrayList<>();
-        try {
-            MessageDigest md = MessageDigest.getInstance("MD5");
-            for (String permutation : permutations) {
-                byte[] messageDigest = md.digest(permutation.getBytes(StandardCharsets.UTF_8));
-                String pHash = DatatypeConverter.printHexBinary(messageDigest).toUpperCase();
-                if (hash.equalsIgnoreCase(pHash)) {
-                    answer.add(permutation);
-                }
-            }
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
-        }
-        System.out.println(answer);
-        return answer;
-    }
-
     private void sendPossiblePasswords(CrackHashWorkerResponse crackHashWorkerResponse) {
-        // String xmlContent = convertToXml(crackHashWorkerResponse);
-     /*   String soapRequest = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
-                + "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" "
-                + "xmlns:web=\"http://ccfit.nsu.ru/schema/crack-hash-response\">"
-                + "<soapenv:Header/>"
-                + "<soapenv:Body>"
-                + "<web:CrackHashWorkerResponse>" + xmlContent + "</web:CrackHashWorkerResponse>"
-                + "</soapenv:Body>"
-                + "</soapenv:Envelope>";*/
-
-   //     HttpHeaders headers = new HttpHeaders();
-  //      headers.set("Content-Type", "text/xml");
-   //     HttpEntity<String> entity = new HttpEntity<>(xmlContent, headers);
-
-  /*      HttpHeaders headers = new HttpHeaders();
-        headers.set("Content-Type", "text/xml");
-
-        RestTemplate restTemplate = new RestTemplate();
-
-        HttpEntity<CrackHashWorkerResponse> entity = new HttpEntity<>(crackHashWorkerResponse, headers);
-        ResponseEntity<String> response = restTemplate.exchange(
-                "http://localhost:8080/internal/api/manager/hash/crack/task",
-                HttpMethod.POST,
-                entity,
-                String.class
-        );
-        System.out.println("Response: " + response.getBody());*/
-
         StringBuilder answerPart = new StringBuilder();
         answerPart.append("<Answers>");
         for (String word : crackHashWorkerResponse.getAnswers().getWords()) {
@@ -112,21 +70,6 @@ public class WorkerService {
                 requestEntity,
                 String.class
         );
-
-    }
-
-    private static String convertToXml(CrackHashWorkerResponse response) {
-        String result = null;
-        try {
-            JAXBContext context = JAXBContext.newInstance(CrackHashWorkerResponse.class);
-            Marshaller marshaller = context.createMarshaller();
-            StringWriter writer = new StringWriter();
-            marshaller.marshal(response, writer);
-            result = writer.toString();
-        } catch (JAXBException e) {
-            throw new RuntimeException(e);
-        }
-        return result;
     }
 
     private CrackHashWorkerResponse createCrackHashWorkerResponse(List<String> answer, String requestId, Integer number) {
@@ -139,10 +82,38 @@ public class WorkerService {
         return crackHashWorkerResponse;
     }
 
-    private List<String> getPartPermutations(List<String> permutations, int partNumber, int partCount) {
-        int partSize = permutations.size() / 3;
-        int start = partNumber * partSize;
-        int end = (partNumber == 2) ? permutations.size() : (partNumber+1) * partSize;
-        return permutations.subList(start, end);
+    private List<String> getAnswer(Stream<String> permutations, int partNumber, int partCount, long maxLength, String passwordHash) {
+        long totalSize = (long) Math.pow(36, maxLength);
+        long partSize = totalSize / partCount;
+        long start = partNumber * partSize;
+        long end = (partNumber == (partCount-1)) ? totalSize : (partNumber+1) * partSize;
+        return permutations
+                .skip(start)
+                .limit(end-start)
+                .filter(permutation -> {
+                    currentIndex.incrementAndGet();
+                    return hash(permutation).equalsIgnoreCase(passwordHash);
+                })
+                .toList();
     }
+
+    private String hash(String permutation) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            byte[] messageDigest = md.digest(permutation.getBytes(StandardCharsets.UTF_8));
+            return DatatypeConverter.printHexBinary(messageDigest).toUpperCase();
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public Integer getCurrentIndex(String requestId) {
+        System.out.println("requestId" + requestId);
+        System.out.println("currentRequestId " + currentRequestId);
+        if (currentRequestId.equals(requestId)) {
+            return currentIndex.get();
+        }
+        return 0;
+    }
+
 }

@@ -1,10 +1,7 @@
 package ru.trushkov.worker.controller;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import ru.nsu.ccfit.schema.crack_hash_request.CrackHashManagerRequest;
 import ru.trushkov.worker.service.WorkerService;
 
@@ -20,4 +17,13 @@ public class WorkerController {
         return crackHashManagerRequest;
     }
 
+    @GetMapping("/health")
+    public String healthCheck() {
+        return "OK";
+    }
+
+    @PostMapping("/getIndex")
+    public Integer getCurrentIndex(@RequestBody String requestId) {
+        return workerService.getCurrentIndex(requestId);
+    }
 }

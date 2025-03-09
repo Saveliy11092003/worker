@@ -77,7 +77,6 @@ task genJaxb {
 	outputs.dir sourcesDir
 
 	doLast {
-		// Создайте директории для каждой схемы
 		def schema1Dir = "${sourcesDir}/schema1"
 		def schema2Dir = "${sourcesDir}/schema2"
 
@@ -88,13 +87,11 @@ task genJaxb {
 			taskdef name: "xjc", classname: "com.sun.tools.xjc.XJCTask",
 					classpath: configurations.jaxb.asPath
 
-			// Генерация для первой схемы
 			xjc(destdir: schema1Dir, schema: schema1) {
 				arg(value: "-wsdl")
 				produces(dir: schema1Dir, includes: "**/*.java")
 			}
 
-			// Генерация для второй схемы
 			xjc(destdir: schema2Dir, schema: schema2) {
 				arg(value: "-wsdl")
 				produces(dir: schema2Dir, includes: "**/*.java")
