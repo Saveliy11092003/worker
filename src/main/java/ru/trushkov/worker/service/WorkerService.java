@@ -1,5 +1,6 @@
 package ru.trushkov.worker.service;
 
+import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import jakarta.xml.bind.DatatypeConverter;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBException;
@@ -39,25 +40,7 @@ public class WorkerService {
     }
 
     private void sendPossiblePasswords(CrackHashWorkerResponse crackHashWorkerResponse) {
-        StringBuilder answerPart = new StringBuilder();
-        answerPart.append("<Answers>");
-        for (String word : crackHashWorkerResponse.getAnswers().getWords()) {
-            answerPart.append("<words>").append(word).append("</words>");
-        }
-        answerPart.append("</Answers>");
-
-        String soapRequest =
-                "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:crac=\"http://ccfit.nsu.ru/schema/crack-hash-response\">" +
-                        "   <soapenv:Header/>" +
-                        "   <soapenv:Body>" +
-                        "      <crac:CrackHashWorkerResponse>" +
-                        "         <RequestId>" + crackHashWorkerResponse.getRequestId() + "</RequestId>" +
-                        "         <PartNumber>" + crackHashWorkerResponse.getPartNumber() + "</PartNumber>" +
-                                        answerPart +
-                        "      </crac:CrackHashWorkerResponse>" +
-                        "   </soapenv:Body>" +
-                        "</soapenv:Envelope>";
-
+        String soapRequest = getXmlMessage(crackHashWorkerResponse);
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.TEXT_XML);
 
@@ -70,6 +53,25 @@ public class WorkerService {
                 requestEntity,
                 String.class
         );
+    }
+
+    private String getXmlMessage(CrackHashWorkerResponse crackHashWorkerResponse) {
+        StringBuilder answerPart = new StringBuilder();
+        answerPart.append("<Answers>");
+        for (String word : crackHashWorkerResponse.getAnswers().getWords()) {
+            answerPart.append("<words>").append(word).append("</words>");
+        }
+        answerPart.append("</Answers>");
+        return "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:crac=\"http://ccfit.nsu.ru/schema/crack-hash-response\">" +
+                "   <soapenv:Header/>" +
+                "   <soapenv:Body>" +
+                "      <crac:CrackHashWorkerResponse>" +
+                "         <RequestId>" + crackHashWorkerResponse.getRequestId() + "</RequestId>" +
+                "         <PartNumber>" + crackHashWorkerResponse.getPartNumber() + "</PartNumber>" +
+                                    answerPart +
+                "      </crac:CrackHashWorkerResponse>" +
+                "   </soapenv:Body>" +
+                "</soapenv:Envelope>";
     }
 
     private CrackHashWorkerResponse createCrackHashWorkerResponse(List<String> answer, String requestId, Integer number) {
