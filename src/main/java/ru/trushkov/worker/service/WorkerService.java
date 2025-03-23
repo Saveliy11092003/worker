@@ -7,6 +7,7 @@ import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.Marshaller;
 import lombok.RequiredArgsConstructor;
 import org.paukov.combinatorics3.Generator;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -28,14 +29,17 @@ public class WorkerService {
 
     private volatile String currentRequestId;
 
+    @Value("${url.possible.password}")
+    private String urlPossiblePassword;
+
     public void task(CrackHashManagerRequest request) {
         currentRequestId = request.getRequestId();
         currentIndex.set(0);
         Stream<String> permutations = Generator.permutation(request.getAlphabet().getSymbols())
                 .withRepetitions(request.getMaxLength()).stream().map(list -> String.join("", list));
-        List<String> answer = getAnswer(permutations, request.getPartNumber(), request.getPartCount(), request.getMaxLength(), request.getHash());
+        List<String> answer = getAnswer(permutations, request);
         System.out.println(answer);
-        CrackHashWorkerResponse crackHashWorkerResponse = createCrackHashWorkerResponse(answer, request.getRequestId(), request.getPartNumber());
+        CrackHashWorkerResponse crackHashWorkerResponse = createCrackHashWorkerResponse(answer, request);
         sendPossiblePasswords(crackHashWorkerResponse);
     }
 
@@ -48,7 +52,7 @@ public class WorkerService {
 
         RestTemplate restTemplate = new RestTemplate();
         restTemplate.exchange(
-                "http://manager:8080/internal/api/manager/hash/crack/task",
+                urlPossiblePassword,
                 HttpMethod.POST,
                 requestEntity,
                 String.class
@@ -56,35 +60,56 @@ public class WorkerService {
     }
 
     private String getXmlMessage(CrackHashWorkerResponse crackHashWorkerResponse) {
+        return  getEnvelopeBegin() +
+                getHeader() +
+                getBody(crackHashWorkerResponse) +
+                getEnvelopeEnd();
+    }
+
+    private String getEnvelopeBegin() {
+        return "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" " +
+                "xmlns:crac=\"http://ccfit.nsu.ru/schema/crack-hash-response\">";
+    }
+
+    private String getEnvelopeEnd() {
+        return "</soapenv:Envelope>";
+    }
+
+    private String getHeader() {
+        return "<soapenv:Header/>";
+    }
+
+    private String getBody(CrackHashWorkerResponse crackHashWorkerResponse) {
         StringBuilder answerPart = new StringBuilder();
         answerPart.append("<Answers>");
         for (String word : crackHashWorkerResponse.getAnswers().getWords()) {
             answerPart.append("<words>").append(word).append("</words>");
         }
         answerPart.append("</Answers>");
-        return "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:crac=\"http://ccfit.nsu.ru/schema/crack-hash-response\">" +
-                "   <soapenv:Header/>" +
-                "   <soapenv:Body>" +
+        return  "   <soapenv:Body>" +
                 "      <crac:CrackHashWorkerResponse>" +
                 "         <RequestId>" + crackHashWorkerResponse.getRequestId() + "</RequestId>" +
                 "         <PartNumber>" + crackHashWorkerResponse.getPartNumber() + "</PartNumber>" +
-                                    answerPart +
+                                                answerPart +
                 "      </crac:CrackHashWorkerResponse>" +
-                "   </soapenv:Body>" +
-                "</soapenv:Envelope>";
+                "   </soapenv:Body>";
     }
 
-    private CrackHashWorkerResponse createCrackHashWorkerResponse(List<String> answer, String requestId, Integer number) {
+    private CrackHashWorkerResponse createCrackHashWorkerResponse(List<String> answer, CrackHashManagerRequest request) {
         CrackHashWorkerResponse crackHashWorkerResponse = new CrackHashWorkerResponse();
-        crackHashWorkerResponse.setRequestId(requestId);
-        crackHashWorkerResponse.setPartNumber(number);
+        crackHashWorkerResponse.setRequestId(request.getRequestId());
+        crackHashWorkerResponse.setPartNumber(request.getPartNumber());
         CrackHashWorkerResponse.Answers answers = new CrackHashWorkerResponse.Answers();
         answers.getWords().addAll(answer);
         crackHashWorkerResponse.setAnswers(answers);
         return crackHashWorkerResponse;
     }
 
-    private List<String> getAnswer(Stream<String> permutations, int partNumber, int partCount, long maxLength, String passwordHash) {
+    private List<String> getAnswer(Stream<String> permutations, CrackHashManagerRequest request) {
+        int partNumber = request.getPartNumber();
+        int maxLength = request.getMaxLength();
+        int partCount = request.getPartCount();
+        String passwordHash = request.getHash();
         long totalSize = (long) Math.pow(36, maxLength);
         long partSize = totalSize / partCount;
         long start = partNumber * partSize;
