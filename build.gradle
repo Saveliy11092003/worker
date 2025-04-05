@@ -36,6 +36,7 @@ dependencies {
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 	implementation 'wsdl4j:wsdl4j'
 	implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-xml:2.16.1'
+	implementation 'org.springframework.boot:spring-boot-starter-amqp'
 
 	implementation 'org.glassfish.jaxb:jaxb-xjc'
 	jaxb 'org.glassfish.jaxb:jaxb-xjc:4.0.3'
