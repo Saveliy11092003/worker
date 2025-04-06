@@ -8,6 +8,7 @@ import jakarta.xml.bind.Marshaller;
 import lombok.RequiredArgsConstructor;
 import org.paukov.combinatorics3.Generator;
 import org.springframework.amqp.core.AmqpTemplate;
+import org.springframework.amqp.core.MessageDeliveryMode;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
@@ -69,7 +70,11 @@ public class WorkerService {
        // HttpEntity<String> requestEntity = new HttpEntity<>(soapRequest, headers);
 
         System.out.println("do rabbit");
-        amqpTemplate.convertAndSend(exchangeName, "task.manager", crackHashWorkerResponse);
+        amqpTemplate.convertAndSend(exchangeName, "task.manager", crackHashWorkerResponse,
+                message -> {
+                    message.getMessageProperties().setDeliveryMode(MessageDeliveryMode.PERSISTENT);
+                    return message;
+                });
         //RestTemplate restTemplate = new RestTemplate();
        // restTemplate.exchange(
       //          urlPossiblePassword,
