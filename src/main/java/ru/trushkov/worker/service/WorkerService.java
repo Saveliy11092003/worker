@@ -43,8 +43,13 @@ public class WorkerService {
 
     private final AmqpTemplate amqpTemplate;
 
-    @RabbitListener(queues = "${queue.request}")
+    @RabbitListener(queues = "request_queue_1")
     public void task(CrackHashManagerRequest request) {
+        try {
+            Thread.sleep(10000);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
         currentRequestId = request.getRequestId();
         System.out.println("I am here");
         System.out.println("Request " + request.getRequestId() + " " + request.getHash() + " " + request.getMaxLength());
