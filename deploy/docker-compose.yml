@@ -1,14 +1,19 @@
 version: '3.8'
 
 services:
+
   manager:
     build:
       context: ../../crack-manager
     container_name: manager
+    restart: always
     ports:
       - "8080:8080"
     networks:
       - app-network
+    depends_on:
+      rabbitmq1:
+        condition: service_healthy
 
   worker1:
     build:
@@ -22,6 +27,9 @@ services:
     environment:
       - SERVER_PORT=8080
       - REQUEST_QUEUE=request_queue_1
+    depends_on:
+      rabbitmq1:
+        condition: service_healthy
 
   worker2:
     build:
@@ -35,6 +43,9 @@ services:
     environment:
       - SERVER_PORT=8080
       - REQUEST_QUEUE=request_queue_2
+    depends_on:
+      rabbitmq1:
+        condition: service_healthy
 
   worker3:
     build:
@@ -48,6 +59,35 @@ services:
     environment:
       - SERVER_PORT=8080
       - REQUEST_QUEUE=request_queue_3
+    depends_on:
+      rabbitmq1:
+        condition: service_healthy
+
+  rabbitmq1:
+    image: rabbitmq:management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - app-network
+    healthcheck:
+      test: [ "CMD", "rabbitmqctl", "status" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq2:
+    image: rabbitmq:management
+    ports:
+      - "5673:5672"
+      - "15673:15672"
+    networks:
+      - app-network
+    healthcheck:
+      test: [ "CMD", "rabbitmqctl", "status" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
       #  mongo:
       #    container_name: mongo
@@ -64,22 +104,6 @@ services:
       # MONGO_DATABASE: manager
       #MONGO_USERNAME: mongo
       # MONGO_PASSWORD: mongo
-
-  rabbitmq1:
-    image: rabbitmq:management
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    networks:
-      - app-network
-
-  rabbitmq2:
-    image: rabbitmq:management
-    ports:
-      - "5673:5672"
-      - "15673:15672"
-    networks:
-      - app-network
 
   mongo1:
     image: mongo:7.0
