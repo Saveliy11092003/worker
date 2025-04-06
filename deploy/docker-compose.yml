@@ -70,6 +70,8 @@ services:
       - "15672:15672"
     networks:
       - app-network
+    volumes:
+      - rabbitmq1-data:/var/lib/rabbitmq
     healthcheck:
       test: [ "CMD", "rabbitmqctl", "status" ]
       interval: 10s
@@ -83,6 +85,8 @@ services:
       - "15673:15672"
     networks:
       - app-network
+    volumes:
+      - rabbitmq2-data:/var/lib/rabbitmq
     healthcheck:
       test: [ "CMD", "rabbitmqctl", "status" ]
       interval: 10s
@@ -176,13 +180,14 @@ services:
       "
 
 volumes:
-  rabbitmq_data:
   mongo1_data:
   mongo2_data:
   mongo3_data:
   mongo1_config:
   mongo2_config:
   mongo3_config:
+  rabbitmq1-data:
+  rabbitmq2-data:
 
 networks:
   app-network:
