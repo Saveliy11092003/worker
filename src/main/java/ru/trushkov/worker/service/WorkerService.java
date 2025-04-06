@@ -7,6 +7,7 @@ import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.Marshaller;
 import lombok.RequiredArgsConstructor;
 import org.paukov.combinatorics3.Generator;
+import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
@@ -36,7 +37,12 @@ public class WorkerService {
     @Value("${url.possible.password}")
     private String urlPossiblePassword;
 
-    @RabbitListener(queues = "request_queue_1")
+    @Value("${exchange.name}")
+    private String exchangeName;
+
+    private final AmqpTemplate amqpTemplate;
+
+    @RabbitListener(queues = "${queue.request}")
     public void task(CrackHashManagerRequest request) {
         currentRequestId = request.getRequestId();
         System.out.println("I am here");
@@ -56,21 +62,22 @@ public class WorkerService {
     }
 
     private void sendPossiblePasswords(CrackHashWorkerResponse crackHashWorkerResponse) {
-        String soapRequest = getXmlMessage(crackHashWorkerResponse);
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.TEXT_XML);
+  //      String soapRequest = getXmlMessage(crackHashWorkerResponse);
+   //     HttpHeaders headers = new HttpHeaders();
+  //      headers.setContentType(MediaType.TEXT_XML);
 
-        HttpEntity<String> requestEntity = new HttpEntity<>(soapRequest, headers);
+       // HttpEntity<String> requestEntity = new HttpEntity<>(soapRequest, headers);
 
-        System.out.println("do rest");
-        RestTemplate restTemplate = new RestTemplate();
-        restTemplate.exchange(
-                urlPossiblePassword,
-                HttpMethod.POST,
-                requestEntity,
-                String.class
-        );
-        System.out.println("posle rest");
+        System.out.println("do rabbit");
+        amqpTemplate.convertAndSend(exchangeName, "task.manager", crackHashWorkerResponse);
+        //RestTemplate restTemplate = new RestTemplate();
+       // restTemplate.exchange(
+      //          urlPossiblePassword,
+      //          HttpMethod.POST,
+    //            requestEntity,
+     //           String.class
+    //    );
+        System.out.println("posle rabbit");
     }
 
     private String getXmlMessage(CrackHashWorkerResponse crackHashWorkerResponse) {
