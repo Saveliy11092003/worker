@@ -1,10 +1,6 @@
 package ru.trushkov.worker.service;
 
-import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import jakarta.xml.bind.DatatypeConverter;
-import jakarta.xml.bind.JAXBContext;
-import jakarta.xml.bind.JAXBException;
-import jakarta.xml.bind.Marshaller;
 import lombok.RequiredArgsConstructor;
 import org.paukov.combinatorics3.Generator;
 import org.springframework.amqp.core.AmqpTemplate;
@@ -14,9 +10,7 @@ import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
-import org.springframework.http.*;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 import ru.nsu.ccfit.schema.crack_hash_request.CrackHashManagerRequest;
 import ru.nsu.ccfit.schema.crack_hash_response.CrackHashWorkerResponse;
 
@@ -35,16 +29,18 @@ public class WorkerService {
 
     private volatile String currentRequestId;
 
-    @Value("${url.possible.password}")
-    private String urlPossiblePassword;
-
     @Value("${exchange.name}")
     private String exchangeName;
 
     private final AmqpTemplate amqpTemplate;
 
-    @RabbitListener(queues = "${queue.request}")
+    @RabbitListener(queues = "request_queue_1")
     public void task(CrackHashManagerRequest request) {
+        try {
+            Thread.sleep(30000);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
         currentRequestId = request.getRequestId();
         System.out.println("I am here");
         System.out.println("Request " + request.getRequestId() + " " + request.getHash() + " " + request.getMaxLength());
@@ -63,62 +59,11 @@ public class WorkerService {
     }
 
     private void sendPossiblePasswords(CrackHashWorkerResponse crackHashWorkerResponse) {
-  //      String soapRequest = getXmlMessage(crackHashWorkerResponse);
-   //     HttpHeaders headers = new HttpHeaders();
-  //      headers.setContentType(MediaType.TEXT_XML);
-
-       // HttpEntity<String> requestEntity = new HttpEntity<>(soapRequest, headers);
-
-        System.out.println("do rabbit");
         amqpTemplate.convertAndSend(exchangeName, "task.manager", crackHashWorkerResponse,
                 message -> {
                     message.getMessageProperties().setDeliveryMode(MessageDeliveryMode.PERSISTENT);
                     return message;
                 });
-        //RestTemplate restTemplate = new RestTemplate();
-       // restTemplate.exchange(
-      //          urlPossiblePassword,
-      //          HttpMethod.POST,
-    //            requestEntity,
-     //           String.class
-    //    );
-        System.out.println("posle rabbit");
-    }
-
-    private String getXmlMessage(CrackHashWorkerResponse crackHashWorkerResponse) {
-        return  getEnvelopeBegin() +
-                getHeader() +
-                getBody(crackHashWorkerResponse) +
-                getEnvelopeEnd();
-    }
-
-    private String getEnvelopeBegin() {
-        return "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" " +
-                "xmlns:crac=\"http://ccfit.nsu.ru/schema/crack-hash-response\">";
-    }
-
-    private String getEnvelopeEnd() {
-        return "</soapenv:Envelope>";
-    }
-
-    private String getHeader() {
-        return "<soapenv:Header/>";
-    }
-
-    private String getBody(CrackHashWorkerResponse crackHashWorkerResponse) {
-        StringBuilder answerPart = new StringBuilder();
-        answerPart.append("<Answers>");
-        for (String word : crackHashWorkerResponse.getAnswers().getWords()) {
-            answerPart.append("<words>").append(word).append("</words>");
-        }
-        answerPart.append("</Answers>");
-        return  "   <soapenv:Body>" +
-                "      <crac:CrackHashWorkerResponse>" +
-                "         <RequestId>" + crackHashWorkerResponse.getRequestId() + "</RequestId>" +
-                "         <PartNumber>" + crackHashWorkerResponse.getPartNumber() + "</PartNumber>" +
-                                                answerPart +
-                "      </crac:CrackHashWorkerResponse>" +
-                "   </soapenv:Body>";
     }
 
     private CrackHashWorkerResponse createCrackHashWorkerResponse(List<String> answer, CrackHashManagerRequest request) {
