@@ -48,7 +48,6 @@ public class RabbitConfiguration {
 
     @Bean
     public CachingConnectionFactory connectionFactory() {
-        //CachingConnectionFactory connectionFactory = new CachingConnectionFactory("localhost", 5673);
         System.out.println("pered connecting");
         CachingConnectionFactory connectionFactory = new CachingConnectionFactory("rabbitmq2", 5672);
         System.out.println("posle connecting");
@@ -78,7 +77,6 @@ public class RabbitConfiguration {
 
     @Bean(name = "receiveConnectionFactory")
     public CachingConnectionFactory receiveConnectionFactory() {
-        //CachingConnectionFactory factory = new CachingConnectionFactory("localhost", 5672);
         CachingConnectionFactory factory = new CachingConnectionFactory("rabbitmq1", 5672);
         factory.setUsername(username);
         factory.setPassword(password);
