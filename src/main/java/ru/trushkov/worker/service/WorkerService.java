@@ -27,7 +27,7 @@ public class WorkerService {
 
     private AtomicInteger currentIndex = new AtomicInteger();
 
-    private volatile String currentRequestId;
+    private volatile String currentRequestId = "";
 
     @Value("${exchange.name}")
     private String exchangeName;
@@ -36,8 +36,9 @@ public class WorkerService {
 
     @RabbitListener(queues = "request_queue_1")
     public void task(CrackHashManagerRequest request) {
+        System.out.println("Worker do start");
         try {
-            Thread.sleep(30000);
+            Thread.sleep(15000);
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
@@ -50,7 +51,9 @@ public class WorkerService {
         List<String> answer = getAnswer(permutations, request);
         System.out.println(answer);
         CrackHashWorkerResponse crackHashWorkerResponse = createCrackHashWorkerResponse(answer, request);
+        System.out.println("Worker do send");
         sendPossiblePasswords(crackHashWorkerResponse);
+        System.out.println("Worker do end");
     }
 
     @Bean
